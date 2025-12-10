@@ -1,0 +1,43 @@
+{
+  "app_name": "WhatsAppSender",
+  "version": "1.0.0",
+  "author": "Your Name",
+  "description": "تطبيق إرسال رسائل WhatsApp متعدد المنصات",
+  "entry_point": "main.py",
+  "icon": {
+    "windows": "icon.ico",
+    "linux": "icon.png",
+    "macos": "icon.icns",
+    "android": "icon.png"
+  },
+  "requirements": ["requirements.txt"],
+  "include_files": ["config/", "data/", "images/"],
+  "exclude_patterns": ["__pycache__", "*.pyc", ".git"],
+  "build_targets": ["windows", "linux", "android", "macos", "web"],
+  "build_options": {
+    "windows": {
+      "onefile": true,
+      "console": false,
+      "uac_admin": false,
+      "create_msi": true
+    },
+    "linux": {
+      "onefile": true,
+      "console": true,
+      "create_appimage": true,
+      "create_deb": false,
+      "create_rpm": false
+    },
+    "android": {
+      "api_level": 29,
+      "orientation": "portrait",
+      "permissions": ["INTERNET", "VIBRATE", "WAKE_LOCK"]
+    },
+    "macos": {
+      "onefile": true,
+      "console": false,
+      "create_dmg": true,
+      "bundle_id": "com.yourcompany.whatsappsender"
+    }
+  }
+}
