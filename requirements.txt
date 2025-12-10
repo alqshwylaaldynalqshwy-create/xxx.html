@@ -1,0 +1,21 @@
+# الأساسيات
+pyinstaller>=5.0
+setuptools>=65.0
+
+# للويب
+streamlit>=1.24.0
+gradio>=3.40.0
+
+# لـ Android
+buildozer>=1.5.0
+kivy>=2.1.0
+python-for-android
+
+# لـ macOS
+py2app>=0.28.0
+
+# مكتبات مفيدة
+requests>=2.28.0
+pillow>=9.5.0
+pandas>=2.0.0
+numpy>=1.24.0
