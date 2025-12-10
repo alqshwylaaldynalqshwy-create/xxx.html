@@ -1,0 +1,165 @@
+#!/data/data/com.termux/files/usr/bin/python3
+
+import sys
+import os
+
+# إضافة مسار yowsup
+sys.path.append('/data/data/com.termux/files/usr/lib/python3.11/site-packages')
+
+try:
+    from yowsup.layers.interface import YowInterfaceLayer, ProtocolEntityCallback
+    from yowsup.layers.protocol_messages.protocolentities import TextMessageProtocolEntity
+    from yowsup.layers import YowLayerEvent
+    from yowsup.layers.auth import YowAuthenticationProtocolLayer
+    from yowsup.layers.protocol_messages import YowMessagesProtocolLayer
+    from yowsup.layers.protocol_receipts import YowReceiptProtocolLayer
+    from yowsup.layers.protocol_acks import YowAckProtocolLayer
+    from yowsup.layers.network import YowNetworkLayer
+    from yowsup.stacks import YowStack
+    from yowsup.common import YowConstants
+    from yowsup.layers import YowLayerEvent
+    from yowsup import env
+    
+    class WhatsAppLayer(YowInterfaceLayer):
+        def __init__(self):
+            super().__init__()
+            self.messages_to_send = []
+        
+        @ProtocolEntityCallback("message")
+        def onMessage(self, messageProtocolEntity):
+            # تجاهل الرسائل الواردة
+            pass
+        
+        def send_message(self, to_jid, message):
+            message_entity = TextMessageProtocolEntity(message, to=to_jid)
+            self.toLower(message_entity)
+            print(f"✅ أرسلت إلى {to_jid}: {message}")
+        
+        def set_messages(self, messages):
+            self.messages_to_send = messages
+        
+        def onEvent(self, event):
+            if event.getName() == YowNetworkLayer.EVENT_STATE_CONNECTED:
+                print("✅ متصل بـ WhatsApp!")
+                for to_jid, message in self.messages_to_send:
+                    self.send_message(to_jid, message)
+                # بعد الإرسال، أغرق الاتصال
+                raise KeyboardInterrupt
+        
+    def send_real_whatsapp():
+        os.system('clear')
+        print("\033[1;31m" + "=" * 60)
+        print("⚠️  WhatsApp via Yowsup (غير رسمي)")
+        print("=" * 60 + "\033[0m")
+        
+        print("\n⚠️  تحذير:")
+        print("• هذه الطريقة غير رسمية وقد تؤدي لحظر رقمك")
+        print("• WhatsApp قد يمنع هذه الطريقة")
+        print("• الاستخدام على مسؤوليتك الخاصة")
+        
+        print("\n📱 تحتاج إلى:")
+        print("1. رقم هاتف مسجل في واتساب")
+        print("2. كود التحقق عبر SMS")
+        
+        phone = input("\n📞 رقم الهاتف (مثال: 966501234567): ").strip()
+        
+        if not phone:
+            print("❌ الرقم مطلوب!")
+            return
+        
+        # الحصول على كود التحقق (يجب تنفيذ هذا يدوياً)
+        print(f"\n📲 ستصلك رسالة SMS على {phone}")
+        print("🔑 أدخل كود التحقق المكون من 6 أرقام:")
+        
+        # هنا يجب تنفيذ عملية تسجيل الدخول إلى yowsup
+        # لكنها معقدة وتتطلب تعديلات كثيرة
+        
+        print("\n❌ هذه الطريقة معقدة وتحتاج إلى تكوين إضافي")
+        print("🔗 راجع وثائق yowsup: https://github.com/tgalal/yowsup")
+        
+except ImportError:
+    print("❌ yowsup غير مثبت!")
+    print("🔧 قم بالتثبيت:")
+    print("pip install yowsup2")#!/data/data/com.termux/files/usr/bin/python3
+
+import sys
+import os
+
+# إضافة مسار yowsup
+sys.path.append('/data/data/com.termux/files/usr/lib/python3.11/site-packages')
+
+try:
+    from yowsup.layers.interface import YowInterfaceLayer, ProtocolEntityCallback
+    from yowsup.layers.protocol_messages.protocolentities import TextMessageProtocolEntity
+    from yowsup.layers import YowLayerEvent
+    from yowsup.layers.auth import YowAuthenticationProtocolLayer
+    from yowsup.layers.protocol_messages import YowMessagesProtocolLayer
+    from yowsup.layers.protocol_receipts import YowReceiptProtocolLayer
+    from yowsup.layers.protocol_acks import YowAckProtocolLayer
+    from yowsup.layers.network import YowNetworkLayer
+    from yowsup.stacks import YowStack
+    from yowsup.common import YowConstants
+    from yowsup.layers import YowLayerEvent
+    from yowsup import env
+    
+    class WhatsAppLayer(YowInterfaceLayer):
+        def __init__(self):
+            super().__init__()
+            self.messages_to_send = []
+        
+        @ProtocolEntityCallback("message")
+        def onMessage(self, messageProtocolEntity):
+            # تجاهل الرسائل الواردة
+            pass
+        
+        def send_message(self, to_jid, message):
+            message_entity = TextMessageProtocolEntity(message, to=to_jid)
+            self.toLower(message_entity)
+            print(f"✅ أرسلت إلى {to_jid}: {message}")
+        
+        def set_messages(self, messages):
+            self.messages_to_send = messages
+        
+        def onEvent(self, event):
+            if event.getName() == YowNetworkLayer.EVENT_STATE_CONNECTED:
+                print("✅ متصل بـ WhatsApp!")
+                for to_jid, message in self.messages_to_send:
+                    self.send_message(to_jid, message)
+                # بعد الإرسال، أغرق الاتصال
+                raise KeyboardInterrupt
+        
+    def send_real_whatsapp():
+        os.system('clear')
+        print("\033[1;31m" + "=" * 60)
+        print("⚠️  WhatsApp via Yowsup (غير رسمي)")
+        print("=" * 60 + "\033[0m")
+        
+        print("\n⚠️  تحذير:")
+        print("• هذه الطريقة غير رسمية وقد تؤدي لحظر رقمك")
+        print("• WhatsApp قد يمنع هذه الطريقة")
+        print("• الاستخدام على مسؤوليتك الخاصة")
+        
+        print("\n📱 تحتاج إلى:")
+        print("1. رقم هاتف مسجل في واتساب")
+        print("2. كود التحقق عبر SMS")
+        
+        phone = input("\n📞 رقم الهاتف (مثال: 966501234567): ").strip()
+        
+        if not phone:
+            print("❌ الرقم مطلوب!")
+            return
+        
+        # الحصول على كود التحقق (يجب تنفيذ هذا يدوياً)
+        print(f"\n📲 ستصلك رسالة SMS على {phone}")
+        print("🔑 أدخل كود التحقق المكون من 6 أرقام:")
+        
+        # هنا يجب تنفيذ عملية تسجيل الدخول إلى yowsup
+        # لكنها معقدة وتتطلب تعديلات كثيرة
+        
+        print("\n❌ هذه الطريقة معقدة وتحتاج إلى تكوين إضافي")
+        print("🔗 راجع وثائق yowsup: https://github.com/tgalal/yowsup")
+        
+except ImportError:
+    print("❌ yowsup غير مثبت!")
+    print("🔧 قم بالتثبيت:")
+    print("pip install yowsup2")
