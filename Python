@@ -1,165 +1,766 @@
-#!/data/data/com.termux/files/usr/bin/python3
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Universal Python App Builder - يحول أي كود بايثون لتطبيق لكل الأنظمة
+"""
 
+import os
 import sys
+import json
+import shutil
+import platform
+import subprocess
+import zipfile
+import tarfile
+from pathlib import Path
+from datetime import datetime
+from typing import Dict, List, Optional, Tuple
+
+class UniversalAppBuilder:
+    """أداة بناء تطبيقات شاملة لكل الأنظمة"""
+    
+    def __init__(self, config_file: str = "app_builder_config.json"):
+        self.config_file = config_file
+        self.config = self.load_config()
+        self.current_os = platform.system().lower()
+        self.project_root = Path.cwd()
+        
+        # ألوان للطباعة
+        self.COLORS = {
+            'RED': '\033[91m',
+            'GREEN': '\033[92m',
+            'YELLOW': '\033[93m',
+            'BLUE': '\033[94m',
+            'MAGENTA': '\033[95m',
+            'CYAN': '\033[96m',
+            'RESET': '\033[0m',
+            'BOLD': '\033[1m'
+        }
+    
+    def color_print(self, text: str, color: str = 'RESET'):
+        """طباعة ملونة"""
+        print(f"{self.COLORS.get(color, '')}{text}{self.COLORS['RESET']}")
+    
+    def load_config(self) -> Dict:
+        """تحميل إعدادات البناء"""
+        default_config = {
+            "app_name": "MyPythonApp",
+            "version": "1.0.0",
+            "author": "Python Developer",
+            "description": "Python Application Built with Universal Builder",
+            "entry_point": "main.py",
+            "icon": {
+                "windows": "icon.ico",
+                "linux": "icon.png",
+                "macos": "icon.icns",
+                "android": "icon.png"
+            },
+            "requirements": ["requirements.txt"],
+            "include_files": ["data/", "images/", "sounds/", "fonts/"],
+            "exclude_patterns": ["__pycache__", "*.pyc", ".git", ".vscode"],
+            "build_targets": ["windows", "linux", "android", "macos", "web"],
+            "build_options": {
+                "windows": {
+                    "onefile": True,
+                    "console": False,
+                    "uac_admin": False,
+                    "create_msi": True
+                },
+                "linux": {
+                    "onefile": True,
+                    "console": True,
+                    "create_appimage": True,
+                    "create_deb": False,
+                    "create_rpm": False
+                },
+                "android": {
+                    "api_level": 29,
+                    "orientation": "portrait",
+                    "permissions": ["INTERNET", "VIBRATE"]
+                },
+                "macos": {
+                    "onefile": True,
+                    "console": False,
+                    "create_dmg": True,
+                    "bundle_id": "com.yourcompany.app"
+                }
+            }
+        }
+        
+        if os.path.exists(self.config_file):
+            try:
+                with open(self.config_file, 'r', encoding='utf-8') as f:
+                    user_config = json.load(f)
+                    default_config.update(user_config)
+            except:
+                self.color_print(f"⚠️  خطأ في قراءة {self.config_file}, استخدام الإعدادات الافتراضية", "YELLOW")
+        
+        return default_config
+    
+    def check_dependencies(self):
+        """التحقق من تثبيت التبعيات المطلوبة"""
+        required_tools = {
+            "pyinstaller": ["pyinstaller", "--version"],
+            "python": ["python", "--version"],
+            "git": ["git", "--version"],
+            "docker": ["docker", "--version"]
+        }
+        
+        missing_tools = []
+        
+        for tool, cmd in required_tools.items():
+            try:
+                subprocess.run(cmd, capture_output=True, check=True)
+                self.color_print(f"✓ {tool} مثبت", "GREEN")
+            except:
+                missing_tools.append(tool)
+                self.color_print(f"✗ {tool} غير مثبت", "RED")
+        
+        return missing_tools
+    
+    def install_dependencies(self, missing_tools: List[str]):
+        """تثبيت الأدوات المفقودة"""
+        for tool in missing_tools:
+            self.color_print(f"📦 جاري تثبيت {tool}...", "CYAN")
+            
+            try:
+                if tool == "pyinstaller":
+                    subprocess.run([sys.executable, "-m", "pip", "install", "pyinstaller"], check=True)
+                elif tool == "git" and self.current_os == "linux":
+                    subprocess.run(["sudo", "apt-get", "install", "git", "-y"], check=True)
+                elif tool == "docker" and self.current_os == "linux":
+                    subprocess.run(["sudo", "apt-get", "install", "docker.io", "-y"], check=True)
+                
+                self.color_print(f"✓ تم تثبيت {tool} بنجاح", "GREEN")
+            except Exception as e:
+                self.color_print(f"❌ فشل تثبيت {tool}: {e}", "RED")
+    
+    def build_for_windows(self):
+        """بناء تطبيق لنظام Windows"""
+        self.color_print("\n🪟 جاري بناء تطبيق Windows...", "CYAN")
+        
+        build_dir = self.project_root / "build" / "windows"
+        build_dir.mkdir(parents=True, exist_ok=True)
+        
+        pyinstaller_cmd = [
+            sys.executable, "-m", "pyinstaller",
+            "--name", f"{self.config['app_name']}-{self.config['version']}",
+            "--distpath", str(build_dir / "dist"),
+            "--workpath", str(build_dir / "build"),
+            "--specpath", str(build_dir),
+            "--clean"
+        ]
+        
+        # إضافة خيارات Windows
+        opts = self.config["build_options"]["windows"]
+        if opts.get("onefile", True):
+            pyinstaller_cmd.append("--onefile")
+        
+        if not opts.get("console", False):
+            pyinstaller_cmd.append("--windowed")
+        
+        if opts.get("uac_admin", False):
+            pyinstaller_cmd.append("--uac-admin")
+        
+        # إضافة أيقونة
+        icon = self.config["icon"].get("windows")
+        if icon and os.path.exists(icon):
+            pyinstaller_cmd.extend(["--icon", icon])
+        
+        # إضافة ملفات إضافية
+        for inc_file in self.config["include_files"]:
+            if os.path.exists(inc_file):
+                pyinstaller_cmd.extend(["--add-data", f"{inc_file}{os.pathsep}{inc_file}"])
+        
+        # الملف الرئيسي
+        pyinstaller_cmd.append(self.config["entry_point"])
+        
+        # تنفيذ PyInstaller
+        try:
+            self.color_print(f"🏗️  أمر البناء: {' '.join(pyinstaller_cmd)}", "BLUE")
+            subprocess.run(pyinstaller_cmd, check=True)
+            
+            # إنشاء ملف MSI (اختياري)
+            if opts.get("create_msi", False) and shutil.which("candle") and shutil.which("light"):
+                self.create_windows_msi(build_dir)
+            
+            self.color_print("✅ تم بناء تطبيق Windows بنجاح!", "GREEN")
+            return True
+        except Exception as e:
+            self.color_print(f"❌ فشل بناء Windows: {e}", "RED")
+            return False
+    
+    def build_for_linux(self):
+        """بناء تطبيق لنظام Linux"""
+        self.color_print("\n🐧 جاري بناء تطبيق Linux...", "CYAN")
+        
+        build_dir = self.project_root / "build" / "linux"
+        build_dir.mkdir(parents=True, exist_ok=True)
+        
+        # بناء مع PyInstaller
+        pyinstaller_cmd = [
+            sys.executable, "-m", "pyinstaller",
+            "--name", self.config["app_name"].lower().replace(" ", "-"),
+            "--distpath", str(build_dir / "dist"),
+            "--workpath", str(build_dir / "build"),
+            "--specpath", str(build_dir),
+            "--clean"
+        ]
+        
+        opts = self.config["build_options"]["linux"]
+        if opts.get("onefile", True):
+            pyinstaller_cmd.append("--onefile")
+        
+        if not opts.get("console", True):
+            pyinstaller_cmd.append("--windowed")
+        
+        # أيقونة Linux
+        icon = self.config["icon"].get("linux")
+        if icon and os.path.exists(icon):
+            pyinstaller_cmd.extend(["--icon", icon])
+        
+        pyinstaller_cmd.append(self.config["entry_point"])
+        
+        try:
+            subprocess.run(pyinstaller_cmd, check=True)
+            
+            # إنشاء AppImage (اختياري)
+            if opts.get("create_appimage", False):
+                self.create_appimage(build_dir)
+            
+            # إنشاء حزمة DEB (اختياري)
+            if opts.get("create_deb", False):
+                self.create_deb_package(build_dir)
+            
+            self.color_print("✅ تم بناء تطبيق Linux بنجاح!", "GREEN")
+            return True
+        except Exception as e:
+            self.color_print(f"❌ فشل بناء Linux: {e}", "RED")
+            return False
+    
+    def build_for_android(self):
+        """بناء تطبيق لنظام Android"""
+        self.color_print("\n🤖 جاري بناء تطبيق Android...", "CYAN")
+        
+        build_dir = self.project_root / "build" / "android"
+        build_dir.mkdir(parents=True, exist_ok=True)
+        
+        # طريقة 1: استخدام Buildozer (للأكواد البسيطة)
+        if os.path.exists("buildozer.spec") or self.create_buildozer_spec(build_dir):
+            try:
+                subprocess.run(["buildozer", "android", "debug"], cwd=self.project_root, check=True)
+                self.color_print("✅ تم بناء تطبيق Android بنجاح مع Buildozer!", "GREEN")
+                return True
+            except:
+                self.color_print("⚠️  Buildozer فشل، جرب طريقة Kivy", "YELLOW")
+        
+        # طريقة 2: استخدام Kivy مع Docker
+        self.color_print("🔧 استخدام Kivy + Docker لبناء Android...", "BLUE")
+        
+        dockerfile_content = f"""
+FROM ubuntu:20.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# تثبيت المتطلبات
+RUN apt-get update && apt-get install -y \\
+    python3 python3-pip git zip unzip openjdk-11-jdk \\
+    autoconf libtool pkg-config zlib1g-dev libncurses5-dev \\
+    libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev
+
+# تثبيت Buildozer
+RUN pip3 install --upgrade pip wheel setuptools
+RUN pip3 install buildozer cython==0.29.19
+
+# نسخ المشروع
+WORKDIR /app
+COPY . /app
+
+# بناء Android APK
+CMD ["buildozer", "android", "debug"]
+"""
+        
+        dockerfile_path = build_dir / "Dockerfile"
+        dockerfile_path.write_text(dockerfile_content)
+        
+        try:
+            subprocess.run([
+                "docker", "build", "-t", "android-builder", "-f", str(dockerfile_path), "."
+            ], check=True)
+            
+            subprocess.run([
+                "docker", "run", "--rm",
+                "-v", f"{self.project_root}:/app",
+                "android-builder"
+            ], check=True)
+            
+            self.color_print("✅ تم بناء APK لـ Android!", "GREEN")
+            return True
+        except Exception as e:
+            self.color_print(f"❌ فشل بناء Android: {e}", "RED")
+            self.color_print("💡 نصيحة: قم بتثبيت Buildozer يدوياً", "YELLOW")
+            return False
+    
+    def build_for_macos(self):
+        """بناء تطبيق لنظام macOS"""
+        self.color_print("\n🍎 جاري بناء تطبيق macOS...", "CYAN")
+        
+        if self.current_os != "darwin":
+            self.color_print("⚠️  بناء تطبيقات macOS يتطلب جهاز Mac", "YELLOW")
+            return False
+        
+        build_dir = self.project_root / "build" / "macos"
+        build_dir.mkdir(parents=True, exist_ok=True)
+        
+        # استخدام py2app
+        setup_content = f"""
+from setuptools import setup
+
+APP = ['{self.config['entry_point']}']
+DATA_FILES = []
+
+OPTIONS = {{
+    'argv_emulation': False,
+    'iconfile': '{self.config["icon"].get("macos", "icon.icns")}',
+    'plist': {{
+        'CFBundleName': '{self.config["app_name"]}',
+        'CFBundleDisplayName': '{self.config["app_name"]}',
+        'CFBundleVersion': '{self.config["version"]}',
+        'CFBundleIdentifier': 'com.{self.config["author"].lower().replace(" ", "")}.{self.config["app_name"].lower().replace(" ", "")}',
+    }}
+}}
+
+setup(
+    app=APP,
+    data_files=DATA_FILES,
+    options={{'py2app': OPTIONS}},
+    setup_requires=['py2app'],
+)
+"""
+        
+        setup_path = build_dir / "setup.py"
+        setup_path.write_text(setup_content)
+        
+        try:
+            subprocess.run([sys.executable, str(setup_path), "py2app"], cwd=build_dir, check=True)
+            
+            # إنشاء DMG (اختياري)
+            opts = self.config["build_options"]["macos"]
+            if opts.get("create_dmg", False):
+                self.create_macos_dmg(build_dir)
+            
+            self.color_print("✅ تم بناء تطبيق macOS بنجاح!", "GREEN")
+            return True
+        except Exception as e:
+            self.color_print(f"❌ فشل بناء macOS: {e}", "RED")
+            return False
+    
+    def build_for_web(self):
+        """تحويل التطبيق إلى تطبيق ويب"""
+        self.color_print("\n🌐 جاري تحويل التطبيق إلى ويب...", "CYAN")
+        
+        build_dir = self.project_root / "build" / "web"
+        build_dir.mkdir(parents=True, exist_ok=True)
+        
+        # إنشاء تطبيق ويب باستخدام Streamlit أو Gradio
+        web_app_content = f"""#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+import streamlit as st
+import gradio as gr
+import json
 import os
 
-# إضافة مسار yowsup
-sys.path.append('/data/data/com.termux/files/usr/lib/python3.11/site-packages')
+st.set_page_config(
+    page_title="{self.config['app_name']}",
+    page_icon="🚀",
+    layout="wide"
+)
 
-try:
-    from yowsup.layers.interface import YowInterfaceLayer, ProtocolEntityCallback
-    from yowsup.layers.protocol_messages.protocolentities import TextMessageProtocolEntity
-    from yowsup.layers import YowLayerEvent
-    from yowsup.layers.auth import YowAuthenticationProtocolLayer
-    from yowsup.layers.protocol_messages import YowMessagesProtocolLayer
-    from yowsup.layers.protocol_receipts import YowReceiptProtocolLayer
-    from yowsup.layers.protocol_acks import YowAckProtocolLayer
-    from yowsup.layers.network import YowNetworkLayer
-    from yowsup.stacks import YowStack
-    from yowsup.common import YowConstants
-    from yowsup.layers import YowLayerEvent
-    from yowsup import env
+# واجهة Streamlit
+def streamlit_app():
+    st.title("🎯 {self.config['app_name']}")
+    st.markdown("{self.config['description']}")
     
-    class WhatsAppLayer(YowInterfaceLayer):
-        def __init__(self):
-            super().__init__()
-            self.messages_to_send = []
+    with st.sidebar:
+        st.header("الإعدادات")
+        language = st.selectbox("اللغة", ["العربية", "English"])
+        theme = st.selectbox("السمة", ["فاتح", "داكن"])
+    
+    # محاكاة التطبيق الأصلي
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        phone = st.text_input("📞 رقم الهاتف", placeholder="+966501234567")
+        message = st.text_area("✍️ الرسالة", height=100)
         
-        @ProtocolEntityCallback("message")
-        def onMessage(self, messageProtocolEntity):
-            # تجاهل الرسائل الواردة
-            pass
+        if st.button("🚀 إرسال الرسالة", type="primary"):
+            if phone and message:
+                st.success(f"تم إرسال الرسالة إلى {{phone}}")
+                # حفظ في JSON
+                data = {{"phone": phone, "message": message}}
+                with open("messages.json", "a") as f:
+                    json.dump(data, f)
+                    f.write("\\n")
+            else:
+                st.error("الرجاء ملء جميع الحقول")
+    
+    with col2:
+        st.info("📊 سجل الإرسال")
+        if os.path.exists("messages.json"):
+            with open("messages.json", "r") as f:
+                lines = f.readlines()
+                for line in lines[-10:]:  # آخر 10 رسائل
+                    try:
+                        data = json.loads(line.strip())
+                        st.write(f"**رقم:** {{data.get('phone')}}")
+                        st.write(f"**رسالة:** {{data.get('message')[:50]}}...")
+                        st.divider()
+                    except:
+                        pass
+
+# واجهة Gradio البديلة
+def gradio_app():
+    with gr.Blocks(title="{self.config['app_name']}") as demo:
+        gr.Markdown("# 🎯 {self.config['app_name']}")
+        gr.Markdown("{self.config['description']}")
         
-        def send_message(self, to_jid, message):
-            message_entity = TextMessageProtocolEntity(message, to=to_jid)
-            self.toLower(message_entity)
-            print(f"✅ أرسلت إلى {to_jid}: {message}")
+        with gr.Row():
+            with gr.Column():
+                phone = gr.Textbox(label="📞 رقم الهاتف")
+                message = gr.Textbox(label="✍️ الرسالة", lines=3)
+                send_btn = gr.Button("🚀 إرسال", variant="primary")
+                
+                output = gr.Textbox(label="النتيجة", interactive=False)
+                
+                def send_message(p, m):
+                    return f"✅ تم إرسال الرسالة إلى {{p}}\\n📝: {{m}}"
+                
+                send_btn.click(
+                    send_message,
+                    inputs=[phone, message],
+                    outputs=[output]
+                )
+    
+    return demo
+
+if __name__ == "__main__":
+    # اختر إما Streamlit أو Gradio
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == "--gradio":
+        app = gradio_app()
+        app.launch()
+    else:
+        streamlit_app()
+"""
         
-        def set_messages(self, messages):
-            self.messages_to_send = messages
+        web_file = build_dir / "web_app.py"
+        web_file.write_text(web_app_content)
         
-        def onEvent(self, event):
-            if event.getName() == YowNetworkLayer.EVENT_STATE_CONNECTED:
-                print("✅ متصل بـ WhatsApp!")
-                for to_jid, message in self.messages_to_send:
-                    self.send_message(to_jid, message)
-                # بعد الإرسال، أغرق الاتصال
-                raise KeyboardInterrupt
+        # إنشاء requirements للويب
+        web_reqs = build_dir / "requirements_web.txt"
+        web_reqs.write_text("""streamlit>=1.24.0
+gradio>=3.40.0
+pandas>=2.0.0
+numpy>=1.24.0
+pillow>=9.5.0
+""")
         
-    def send_real_whatsapp():
-        os.system('clear')
-        print("\033[1;31m" + "=" * 60)
-        print("⚠️  WhatsApp via Yowsup (غير رسمي)")
-        print("=" * 60 + "\033[0m")
+        self.color_print("✅ تم إنشاء تطبيق ويب بنجاح!", "GREEN")
+        self.color_print(f"📁 الموقع: {web_file}", "BLUE")
+        self.color_print("💡 تشغيل: streamlit run web_app.py", "CYAN")
         
-        print("\n⚠️  تحذير:")
-        print("• هذه الطريقة غير رسمية وقد تؤدي لحظر رقمك")
-        print("• WhatsApp قد يمنع هذه الطريقة")
-        print("• الاستخدام على مسؤوليتك الخاصة")
+        return True
+    
+    def create_buildozer_spec(self, build_dir: Path) -> bool:
+        """إنشاء ملف buildozer.spec لـ Android"""
+        spec_content = f"""[app]
+
+# اسم التطبيق
+title = {self.config['app_name']}
+
+# اسم الحزمة (يجب أن يكون فريداً)
+package.name = {self.config['app_name'].lower().replace(' ', '')}
+
+# اسم المجال (عكس اسم الموقع)
+package.domain = com.{self.config['author'].lower().replace(' ', '')}
+
+# مسار الملف الرئيسي
+source.dir = .
+
+# الملف الرئيسي
+source.include_exts = py,png,jpg,kv,atlas,json,txt
+
+# إصدار التطبيق
+version = {self.config['version']}
+
+# متطلبات بايثون
+requirements = python3,kivy
+
+# إصدار Android SDK
+android.api = 29
+android.minapi = 21
+android.sdk = 24
+android.ndk = 23b
+
+# أذونات Android
+android.permissions = INTERNET, VIBRATE
+
+# اتجاه الشاشة
+orientation = portrait
+
+# أيقونة التطبيق
+icon.filename = {self.config['icon'].get('android', 'icon.png')}
+
+# نسخ OS
+osx.python_version = 3
+osx.kivy_version = 2.1.0
+
+# نسخ iOS
+ios.kivy_version = 2.1.0
+"""
         
-        print("\n📱 تحتاج إلى:")
-        print("1. رقم هاتف مسجل في واتساب")
-        print("2. كود التحقق عبر SMS")
+        spec_path = self.project_root / "buildozer.spec"
+        spec_path.write_text(spec_content)
         
-        phone = input("\n📞 رقم الهاتف (مثال: 966501234567): ").strip()
+        return True
+    
+    def create_appimage(self, build_dir: Path):
+        """إنشاء AppImage لـ Linux"""
+        self.color_print("📦 إنشاء AppImage...", "BLUE")
         
-        if not phone:
-            print("❌ الرقم مطلوب!")
+        app_dir = build_dir / f"{self.config['app_name']}.AppDir"
+        app_dir.mkdir(exist_ok=True)
+        
+        # إنشاء هيكل AppImage
+        (app_dir / "usr" / "bin").mkdir(parents=True, exist_ok=True)
+        (app_dir / "usr" / "share" / "applications").mkdir(parents=True, exist_ok=True)
+        (app_dir / "usr" / "share" / "icons" / "hicolor" / "256x256" / "apps").mkdir(parents=True, exist_ok=True)
+        
+        # نسخ التنفيذي
+        exe_source = build_dir / "dist" / self.config["app_name"].lower().replace(" ", "-")
+        if exe_source.exists():
+            shutil.copy(exe_source, app_dir / "usr" / "bin" / "AppRun")
+            os.chmod(app_dir / "usr" / "bin" / "AppRun", 0o755)
+        
+        # إنشاء desktop file
+        desktop_content = f"""[Desktop Entry]
+Name={self.config['app_name']}
+Comment={self.config['description']}
+Exec=AppRun
+Icon=icon
+Type=Application
+Categories=Utility;
+Terminal=false
+StartupNotify=true
+"""
+        
+        (app_dir / f"{self.config['app_name']}.desktop").write_text(desktop_content)
+        
+        # إنشاء AppRun script
+        apprun_content = """#!/bin/bash
+HERE="$(dirname "$(readlink -f "${0}")")"
+exec "$HERE/usr/bin/AppRun" "$@"
+"""
+        
+        (app_dir / "AppRun").write_text(apprun_content)
+        os.chmod(app_dir / "AppRun", 0o755)
+        
+        self.color_print("✅ تم إنشاء هيكل AppImage", "GREEN")
+    
+    def create_deb_package(self, build_dir: Path):
+        """إنشاء حزمة DEB لـ Linux"""
+        self.color_print("📦 إنشاء حزمة DEB...", "BLUE")
+        
+        deb_dir = build_dir / "deb"
+        deb_dir.mkdir(exist_ok=True)
+        
+        # هيكل حزمة DEB
+        control_content = f"""Package: {self.config['app_name'].lower().replace(' ', '-')}
+Version: {self.config['version']}
+Section: utils
+Priority: optional
+Architecture: amd64
+Depends: python3
+Maintainer: {self.config['author']}
+Description: {self.config['description']}
+ {self.config['app_name']} - تطبيق بايثون متعدد المنصات
+"""
+        
+        (deb_dir / "DEBIAN").mkdir(exist_ok=True)
+        (deb_dir / "DEBIAN" / "control").write_text(control_content)
+        
+        self.color_print("✅ تم إنشاء حزمة DEB (تجريبية)", "GREEN")
+    
+    def create_windows_msi(self, build_dir: Path):
+        """إنشاء MSI installer لـ Windows"""
+        self.color_print("📦 إنشاء MSI installer...", "BLUE")
+        # تحتاج إلى WiX Toolset لهذا
+        
+    def create_macos_dmg(self, build_dir: Path):
+        """إنشاء DMG لـ macOS"""
+        self.color_print("📦 إنشاء DMG image...", "BLUE")
+        # تحتاج إلى hdiutil على macOS
+    
+    def build_all(self):
+        """بناء لكل الأنظمة المحددة"""
+        self.color_print("=" * 60, "MAGENTA")
+        self.color_print(f"🚀 Universal App Builder v1.0", "BOLD")
+        self.color_print(f"📱 بناء: {self.config['app_name']} v{self.config['version']}", "BOLD")
+        self.color_print("=" * 60, "MAGENTA")
+        
+        # التحقق من التبعيات
+        self.color_print("\n🔍 التحقق من التبعيات...", "CYAN")
+        missing = self.check_dependencies()
+        
+        if missing:
+            self.color_print(f"⚠️  أدوات مفقودة: {', '.join(missing)}", "YELLOW")
+            install = input("📦 هل تريد تثبيتها؟ (y/n): ").lower()
+            if install == 'y':
+                self.install_dependencies(missing)
+        
+        # بناء لكل نظام
+        results = {}
+        
+        for target in self.config["build_targets"]:
+            self.color_print(f"\n{'='*50}", "CYAN")
+            self.color_print(f"🏗️  البدء في بناء {target.upper()}...", "BOLD")
+            
+            if target == "windows":
+                results["windows"] = self.build_for_windows()
+            elif target == "linux":
+                results["linux"] = self.build_for_linux()
+            elif target == "android":
+                results["android"] = self.build_for_android()
+            elif target == "macos":
+                results["macos"] = self.build_for_macos()
+            elif target == "web":
+                results["web"] = self.build_for_web()
+        
+        # عرض النتائج
+        self.color_print("\n" + "=" * 60, "GREEN")
+        self.color_print("📊 نتائج البناء:", "BOLD")
+        
+        for target, success in results.items():
+            status = "✅ نجاح" if success else "❌ فشل"
+            self.color_print(f"{target.upper():10} {status}", "GREEN" if success else "RED")
+        
+        self.color_print("\n📁 الملفات في: build/", "BLUE")
+        self.color_print("🎉 تم الانتهاء من عملية البناء!", "BOLD")
+        
+        return all(results.values())
+    
+    def create_installer_script(self):
+        """إنشاء سكريبت تثبيت سريع"""
+        install_content = """#!/bin/bash
+# Universal Python App Installer
+# هذا الملف يولد تلقائياً
+
+echo "🚀 Universal Python App Installer"
+echo "================================="
+
+# تحديد النظام
+OS=$(uname -s)
+case "$OS" in
+    Linux*)     OS_NAME="linux" ;;
+    Darwin*)    OS_NAME="macos" ;;
+    CYGWIN*)    OS_NAME="windows" ;;
+    MINGW*)     OS_NAME="windows" ;;
+    *)          OS_NAME="unknown" ;;
+esac
+
+echo "📱 النظام المكتشف: $OS_NAME"
+
+# تنزيل الملف المناسب
+APP_NAME="{{APP_NAME}}"
+VERSION="{{VERSION}}"
+
+case "$OS_NAME" in
+    "linux")
+        echo "📥 تنزيل تطبيق Linux..."
+        # أضف روابط التنزيل هنا
+        ;;
+    "windows")
+        echo "📥 تنزيل تطبيق Windows..."
+        ;;
+    "macos")
+        echo "📥 تنزيل تطبيق macOS..."
+        ;;
+    *)
+        echo "❌ نظام غير مدعوم"
+        exit 1
+        ;;
+esac
+
+echo "✅ تم التثبيت بنجاح!"
+"""
+        
+        # استبدال المتغيرات
+        install_content = install_content.replace("{{APP_NAME}}", self.config['app_name'])
+        install_content = install_content.replace("{{VERSION}}", self.config['version'])
+        
+        install_path = self.project_root / "install.sh"
+        install_path.write_text(install_content)
+        os.chmod(install_path, 0o755)
+        
+        self.color_print("✅ تم إنشاء سكريبت التثبيت: install.sh", "GREEN")
+
+def main():
+    """الدالة الرئيسية"""
+    builder = UniversalAppBuilder()
+    
+    # عرض واجهة المستخدم
+    builder.color_print("\n🎯 Universal Python App Builder", "BOLD")
+    builder.color_print("أداة تحويل أي كود بايثون لتطبيق لكل الأنظمة", "CYAN")
+    
+    print("\n📋 الخيارات:")
+    print("1. بناء كل الأنظمة")
+    print("2. بناء لنظام محدد")
+    print("3. إنشاء ملفات البناء فقط")
+    print("4. إنشاء سكريبت تثبيت")
+    print("5. خروج")
+    
+    try:
+        choice = input("\n👉 اختر رقم [1-5]: ").strip()
+        
+        if choice == "1":
+            builder.build_all()
+        elif choice == "2":
+            print("\n🎯 اختر النظام:")
+            print("1. Windows (.exe)")
+            print("2. Linux (.AppImage)")
+            print("3. Android (.apk)")
+            print("4. macOS (.app)")
+            print("5. Web (Streamlit)")
+            
+            os_choice = input("👉 اختر رقم: ").strip()
+            
+            if os_choice == "1":
+                builder.build_for_windows()
+            elif os_choice == "2":
+                builder.build_for_linux()
+            elif os_choice == "3":
+                builder.build_for_android()
+            elif os_choice == "4":
+                builder.build_for_macos()
+            elif os_choice == "5":
+                builder.build_for_web()
+        
+        elif choice == "3":
+            builder.create_project_structure()
+            builder.color_print("✅ تم إنشاء هيكل المشروع", "GREEN")
+        
+        elif choice == "4":
+            builder.create_installer_script()
+        
+        elif choice == "5":
+            builder.color_print("👋 مع السلامة!", "CYAN")
             return
         
-        # الحصول على كود التحقق (يجب تنفيذ هذا يدوياً)
-        print(f"\n📲 ستصلك رسالة SMS على {phone}")
-        print("🔑 أدخل كود التحقق المكون من 6 أرقام:")
-        
-        # هنا يجب تنفيذ عملية تسجيل الدخول إلى yowsup
-        # لكنها معقدة وتتطلب تعديلات كثيرة
-        
-        print("\n❌ هذه الطريقة معقدة وتحتاج إلى تكوين إضافي")
-        print("🔗 راجع وثائق yowsup: https://github.com/tgalal/yowsup")
-        
-except ImportError:
-    print("❌ yowsup غير مثبت!")
-    print("🔧 قم بالتثبيت:")
-    print("pip install yowsup2")#!/data/data/com.termux/files/usr/bin/python3
+    except KeyboardInterrupt:
+        builder.color_print("\n👋 تم الإلغاء", "YELLOW")
+    except Exception as e:
+        builder.color_print(f"❌ خطأ: {e}", "RED")
 
-import sys
-import os
-
-# إضافة مسار yowsup
-sys.path.append('/data/data/com.termux/files/usr/lib/python3.11/site-packages')
-
-try:
-    from yowsup.layers.interface import YowInterfaceLayer, ProtocolEntityCallback
-    from yowsup.layers.protocol_messages.protocolentities import TextMessageProtocolEntity
-    from yowsup.layers import YowLayerEvent
-    from yowsup.layers.auth import YowAuthenticationProtocolLayer
-    from yowsup.layers.protocol_messages import YowMessagesProtocolLayer
-    from yowsup.layers.protocol_receipts import YowReceiptProtocolLayer
-    from yowsup.layers.protocol_acks import YowAckProtocolLayer
-    from yowsup.layers.network import YowNetworkLayer
-    from yowsup.stacks import YowStack
-    from yowsup.common import YowConstants
-    from yowsup.layers import YowLayerEvent
-    from yowsup import env
-    
-    class WhatsAppLayer(YowInterfaceLayer):
-        def __init__(self):
-            super().__init__()
-            self.messages_to_send = []
-        
-        @ProtocolEntityCallback("message")
-        def onMessage(self, messageProtocolEntity):
-            # تجاهل الرسائل الواردة
-            pass
-        
-        def send_message(self, to_jid, message):
-            message_entity = TextMessageProtocolEntity(message, to=to_jid)
-            self.toLower(message_entity)
-            print(f"✅ أرسلت إلى {to_jid}: {message}")
-        
-        def set_messages(self, messages):
-            self.messages_to_send = messages
-        
-        def onEvent(self, event):
-            if event.getName() == YowNetworkLayer.EVENT_STATE_CONNECTED:
-                print("✅ متصل بـ WhatsApp!")
-                for to_jid, message in self.messages_to_send:
-                    self.send_message(to_jid, message)
-                # بعد الإرسال، أغرق الاتصال
-                raise KeyboardInterrupt
-        
-    def send_real_whatsapp():
-        os.system('clear')
-        print("\033[1;31m" + "=" * 60)
-        print("⚠️  WhatsApp via Yowsup (غير رسمي)")
-        print("=" * 60 + "\033[0m")
-        
-        print("\n⚠️  تحذير:")
-        print("• هذه الطريقة غير رسمية وقد تؤدي لحظر رقمك")
-        print("• WhatsApp قد يمنع هذه الطريقة")
-        print("• الاستخدام على مسؤوليتك الخاصة")
-        
-        print("\n📱 تحتاج إلى:")
-        print("1. رقم هاتف مسجل في واتساب")
-        print("2. كود التحقق عبر SMS")
-        
-        phone = input("\n📞 رقم الهاتف (مثال: 966501234567): ").strip()
-        
-        if not phone:
-            print("❌ الرقم مطلوب!")
-            return
-        
-        # الحصول على كود التحقق (يجب تنفيذ هذا يدوياً)
-        print(f"\n📲 ستصلك رسالة SMS على {phone}")
-        print("🔑 أدخل كود التحقق المكون من 6 أرقام:")
-        
-        # هنا يجب تنفيذ عملية تسجيل الدخول إلى yowsup
-        # لكنها معقدة وتتطلب تعديلات كثيرة
-        
-        print("\n❌ هذه الطريقة معقدة وتحتاج إلى تكوين إضافي")
-        print("🔗 راجع وثائق yowsup: https://github.com/tgalal/yowsup")
-        
-except ImportError:
-    print("❌ yowsup غير مثبت!")
-    print("🔧 قم بالتثبيت:")
-    print("pip install yowsup2")
+if __name__ == "__main__":
+    main()
