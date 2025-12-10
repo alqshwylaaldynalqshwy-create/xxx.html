@@ -1,0 +1,77 @@
+# المكاتب الأساسية من بايثون
+import sys
+import os
+import time
+import logging
+import argparse
+import threading
+import json
+import hashlib
+import base64
+from getpass import getpass
+from datetime import datetime
+import configparser
+
+# مكاتب yowsup الأساسية
+from yowsup.layers.interface import YowInterfaceLayer
+from yowsup.layers.interface import ProtocolEntityCallback
+from yowsup.layers.protocol_messages.protocolentities import TextMessageProtocolEntity
+from yowsup.layers.protocol_messages.protocolentities import MediaMessageProtocolEntity
+from yowsup.layers.auth import YowAuthenticationProtocolLayer
+from yowsup.layers.protocol_messages import YowMessagesProtocolLayer
+from yowsup.layers.protocol_receipts import YowReceiptProtocolLayer
+from yowsup.layers.protocol_acks import YowAckProtocolLayer
+from yowsup.layers.network import YowNetworkLayer
+from yowsup.layers.coder import YowCoderLayer
+from yowsup.layers.logger import YowLoggerLayer
+from yowsup.layers.noise import YowNoiseLayer
+from yowsup.stacks import YowStack
+from yowsup.stacks import YowStackBuilder
+from yowsup.common import YowConstants
+from yowsup.layers import YowLayerEvent
+from yowsup.env import S40YowsupEnv, AndroidYowsupEnv
+
+# مكاتب yowsup إضافية
+from yowsup.layers.protocol_ib import YowIbProtocolLayer
+from yowsup.layers.protocol_iq import YowIqProtocolLayer
+from yowsup.layers.protocol_contacts.protocolentities import Contact
+from yowsup.layers.protocol_profiles.protocolentities import SetStatusIqProtocolEntity
+from yowsup.layers.protocol_chatstate.protocolentities import (
+    OutgoingChatstateProtocolEntity,
+    ChatstateProtocolEntity
+)
+from yowsup.layers.protocol_presence.protocolentities import (
+    PresenceProtocolEntity,
+    AvailablePresenceProtocolEntity,
+    UnavailablePresenceProtocolEntity
+)
+
+# مكاتب للتسجيل والمصادقة
+from yowsup.registration import WACodeRequest, WARegRequest
+from yowsup.registration.existsrequest import WAExistsRequest
+from yowsup.config.v1.config import YowsupConfig
+from yowsup.axolotl import AxolotlSendLayer
+from yowsup.axolotl.layer import AxolotlControlLayer
+
+# مكاتب للوسائط والملفات
+from yowsup.layers.protocol_media.mediauploader import MediaUploader
+from yowsup.layers.protocol_media.protocolentities import (
+    RequestUploadIqProtocolEntity,
+    ImageDownloadableMediaMessageProtocolEntity,
+    VideoDownloadableMediaMessageProtocolEntity,
+    AudioDownloadableMediaMessageProtocolEntity,
+    DocumentDownloadableMediaMessageProtocolEntity
+)
+
+# مكاتب للشبكة والاتصال
+import socket
+import ssl
+import requests
+from urllib.parse import quote
+
+# مكاتب للمساعدة والتوافق
+import signal
+import queue
+from pathlib import Path
+from typing import List, Dict, Tuple, Optional, Any
+import traceback
